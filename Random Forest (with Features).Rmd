@@ -1,0 +1,131 @@
+---
+title: "Titanic v6"
+output: html_notebook
+---
+
+```{r}
+mdf = read.csv("train.csv")
+
+getfirstIndex <- function(x, string){
+  return (regexpr(pattern = x ,as.character(string)))[1]
+}
+
+addTitle <- function(df){
+  df$Title = substr(as.character(df$Name), getfirstIndex(",", df$Name)+2, getfirstIndex("[.]",df$Name)-1)
+  df$Title = ifelse(df$Title %in% c("Rev", "Dr", "Col", "Don","Capt", "Sir", "the Countess"), "Special", df$Title)
+  df$Title <- as.factor(df$Title)
+  return (df)
+}
+
+addSurname <-function(df){
+  df$Surname <- substr(as.character(df$Name), 1, getfirstIndex(",",df$Name)-1)
+  df$Surname <- as.factor(df$Surname)
+  return (df)
+}
+
+fillMissingAges <- function(df, binnum){
+  df$Age[is.na(df$Age) & df$Parch == 0] = sample(df$Age[!is.na(df$Age) & df$Parch == 0], size = length(df$Age[is.na(df$Age) & df$Parch == 0]))
+  df$Age[is.na(df$Age) & df$Parch != 0] = sample(df$Age[!is.na(df$Age) & df$Parch == 0], size = length(df$Age[is.na(df$Age) & df$Parch != 0]))
+  return (df)
+}
+
+prepareDeck <- function(df){
+  df$Deck = substr(as.character(df$Cabin), 1,1)
+  df$Deck = ifelse(df$Deck == "A" | df$Deck == "B" | df$Deck == "C", "ABC",
+                   ifelse(df$Deck == "D"| df$Deck == "E", "DE",
+                          ifelse(df$Deck == "F"| df$Deck == "G", "FG",
+                                 ifelse(df$Deck == "M", "M", ""))))
+  df$Deck = as.factor(df$Deck)
+  return (df)
+}
+
+
+# ggplot(df, aes(x = AgeBin, y = Survived)) + geom_bar(stat="identity") + geom_density(aes(y=..scaled..))
+# ggplot(df, aes(x = FareBin, y = Survived)) + geom_bar(stat="identity")
+
+readyDateSet<- function(df){
+  
+  binnum = 13
+  
+  df$Survived <- as.factor(df$Survived)
+  df$Pclass <- as.factor(df$Pclass)
+  
+  df <- addTitle(df)
+  df <- addSurname(df)
+  df <- fillMissingAges(df)
+  df <- prepareDeck(df)
+  
+  df$AgeBin <-as.numeric(cut2(df$Age, g=binnum))
+  df$FareBin <-as.numeric(cut2(df$Fare, g=binnum))
+  df$TicketFrequency <- data.frame(table(df$Ticket)[df$Ticket])
+  df$FSize <- df$Parch+df$SibSp+1
+  df$IsMarried <- ifelse(as.character(df$Title) == "Mrs", TRUE, FALSE)
+  
+  return (df)
+}
+
+mdf$Title = NA
+mdf$Surname = NA
+mdf$AgeBin = NA
+mdf$Deck = NA
+mdf$TicketFrequency = NA
+mdf$FSize = NA
+mdf$IsMarried = NA
+
+mdf = readyDateSet(mdf)
+
+```
+
+
+```{r}
+# set.seed(9990)
+# training_indexes <- createDataPartition(mdf$Embarked, p = 0.75, list = FALSE )
+# train <- mdf[training_indexes, ]
+# dev <- mdf[-training_indexes, ]
+train <- mdf
+```
+
+
+```{r}
+g1 = randomForest(Survived~Pclass+Sex+AgeBin+Deck+FareBin+FSize+IsMarried+Embarked, data = train)
+summary(g1)
+```
+
+```{r}
+test = train
+```
+
+
+```{r}
+test = read.csv("test.csv")
+test$Title = NA
+test$Surname = NA
+test$AgeBin = NA
+test$Deck = NA
+test$TicketFrequency = NA
+test$FSize = NA
+test$IsMarried = NA
+test$Survived = NA
+levels(test$Embarked) <- c(levels(test$Embarked), "")
+test = readyDateSet(test)
+# test = readyDateSet(test)
+```
+
+```{r}
+Predictions = predict(g1, newdata = test, type = "class")
+test$Predictions = Predictions
+```
+
+```{r}
+test$Correct = (test$Predictions == test$Survived)
+Accuracy = sum(test$Correct, na.rm = TRUE)/nrow(test)
+```
+
+
+
+```{r}
+Result = test[,c("PassengerId", "Predictions")]
+write.csv(Result, "Results", row.names = FALSE)
+```
+
+

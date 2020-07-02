@@ -1,0 +1,56 @@
+---
+title: "Titanic v4"
+output: html_notebook
+---
+
+```{r}
+df = read.csv("train.csv")
+df$Survived <- as.factor(df$Survived)
+df$Pclass <- as.factor(df$Pclass)
+```
+
+
+```{r}
+# set.seed(323)
+# training_indexes <- createDataPartition(df$Embarked, p = 0.75, list = FALSE )
+# train <- df[training_indexes, ]
+# dev <- df[-training_indexes, ]
+train <- df
+```
+
+
+```{r}
+g1 = rpart(Survived~Pclass+Sex+Age+SibSp+Parch+Fare+Embarked, data = train, method = "class", cp =0.015)
+g2 = rpart(Survived~Pclass+Sex+Age+SibSp+Parch+Fare+Embarked, data = train, method = "class", cp=0.027)
+plotcp(g2)
+
+```
+
+```{r}
+test = read.csv("test.csv")
+test$Pclass <-as.factor(test$Pclass)
+
+# Predictions = c()
+# for (i in 1:nrow(test)){
+#   rec = test[i,]
+#   if (rec$Cabin %in% g1$)
+#   p = predict(g1, newdata = rec, type="class")
+#   Predictions <- c(Predictions, p)
+# }
+
+Predictions = predict(g1, newdata = test, type = "class")
+```
+
+
+
+```{r}
+test$Predictions = Predictions
+# test$Correct = (test$Predictions == test$Survived)
+# 
+# Accuracy = sum(test$Correct, na.rm = TRUE)/nrow(test)
+
+Result = test[,c("PassengerId", "Predictions")]
+write.csv(Result, "Results", row.names = FALSE)
+```
+
+

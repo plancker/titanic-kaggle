@@ -1,0 +1,58 @@
+---
+title: "Titanic v5"
+output: html_notebook
+---
+
+```{r}
+df = read.csv("train.csv")
+df$Survived <- as.factor(df$Survived)
+df$Pclass <- as.factor(df$Pclass)
+```
+
+
+```{r}
+# set.seed(323)
+# training_indexes <- createDataPartition(df$Embarked, p = 0.75, list = FALSE )
+# train <- df[training_indexes, ]
+# dev <- df[-training_indexes, ]
+train <- df
+```
+
+
+```{r}
+g1 = randomForest(Survived~Pclass+Sex+SibSp+Parch+Fare+Embarked, data = train)
+
+```
+
+```{r}
+test = train
+```
+
+
+```{r}
+# test = read.csv("test.csv")
+# test$Pclass <-as.factor(test$Pclass)
+# test$Survived = as.factor(0)
+# levels(test$Survived) <-c(0,1)
+# test <- rbind(train[1, ] , test)
+# test <- test[-1,]
+```
+
+```{r}
+Predictions = predict(g1, newdata = test, type = "class")
+test$Predictions = Predictions
+```
+
+```{r}
+test$Correct = (test$Predictions == test$Survived)
+Accuracy = sum(test$Correct, na.rm = TRUE)/nrow(test)
+```
+
+
+
+```{r}
+Result = test[,c("PassengerId", "Survived")]
+write.csv(Result, "Results", row.names = FALSE)
+```
+
+
